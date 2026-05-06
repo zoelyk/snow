@@ -161,7 +161,7 @@
         <h1 class="text-3xl font-bold text-gray-800 mb-6 tracking-wide">⛷️ 滑雪場雪崩監控器</h1>
         <div class="flex flex-wrap justify-center items-center gap-4">
             
-            <!-- 新增：模式選擇下拉選單 -->
+            <!-- 模式選擇下拉選單 -->
             <select id="mode-select" onchange="toggleMode()" class="bg-gray-100 border-2 border-gray-300 text-gray-800 font-bold py-2 px-4 rounded-xl shadow-sm focus:outline-none focus:border-blue-500 transition-colors cursor-pointer">
                 <option value="virtual">電腦虛擬雪崩</option>
                 <option value="microbit">Microbit模擬</option>
@@ -228,33 +228,51 @@
     <footer class="bg-white p-6 shadow-inner z-10">
         <div class="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6">
             <!-- 咭牌 1 -->
-            <div id="card-1" class="bg-gray-50 border-l-8 border-red-500 rounded-lg p-6 shadow-md transition-all duration-300 flex items-center justify-between">
-                <div>
-                    <h3 class="text-xl font-bold text-gray-800">Pole 1</h3>
-                    <p class="text-sm text-gray-500">左側監測點</p>
+            <div id="card-1" class="bg-gray-50 border-l-8 border-red-500 rounded-lg p-5 shadow-md transition-all duration-300 flex flex-col">
+                <div class="flex items-center justify-between mb-3">
+                    <div>
+                        <h3 class="text-xl font-bold text-gray-800">Pole 1</h3>
+                        <p class="text-sm text-gray-500">左側監測點</p>
+                    </div>
+                    <div class="status-badge bg-green-100 text-green-700 px-4 py-2 rounded-full font-bold text-lg">
+                        直立
+                    </div>
                 </div>
-                <div class="status-badge bg-green-100 text-green-700 px-4 py-2 rounded-full font-bold text-lg">
-                    直立
+                <div class="bg-gray-200 rounded p-2 flex items-center">
+                    <span class="text-xs text-gray-500 font-bold mr-2">Microbit 訊號:</span>
+                    <span id="log-1" class="text-sm font-mono text-gray-800 tracking-wide">等待接收...</span>
                 </div>
             </div>
             <!-- 咭牌 2 -->
-            <div id="card-2" class="bg-gray-50 border-l-8 border-blue-500 rounded-lg p-6 shadow-md transition-all duration-300 flex items-center justify-between">
-                <div>
-                    <h3 class="text-xl font-bold text-gray-800">Pole 2</h3>
-                    <p class="text-sm text-gray-500">右側監測點</p>
+            <div id="card-2" class="bg-gray-50 border-l-8 border-blue-500 rounded-lg p-5 shadow-md transition-all duration-300 flex flex-col">
+                <div class="flex items-center justify-between mb-3">
+                    <div>
+                        <h3 class="text-xl font-bold text-gray-800">Pole 2</h3>
+                        <p class="text-sm text-gray-500">右側監測點</p>
+                    </div>
+                    <div class="status-badge bg-green-100 text-green-700 px-4 py-2 rounded-full font-bold text-lg">
+                        直立
+                    </div>
                 </div>
-                <div class="status-badge bg-green-100 text-green-700 px-4 py-2 rounded-full font-bold text-lg">
-                    直立
+                <div class="bg-gray-200 rounded p-2 flex items-center">
+                    <span class="text-xs text-gray-500 font-bold mr-2">Microbit 訊號:</span>
+                    <span id="log-2" class="text-sm font-mono text-gray-800 tracking-wide">等待接收...</span>
                 </div>
             </div>
             <!-- 咭牌 3 -->
-            <div id="card-3" class="bg-gray-50 border-l-8 border-green-500 rounded-lg p-6 shadow-md transition-all duration-300 flex items-center justify-between">
-                <div>
-                    <h3 class="text-xl font-bold text-gray-800">Pole 3</h3>
-                    <p class="text-sm text-gray-500">左側深處監測點</p>
+            <div id="card-3" class="bg-gray-50 border-l-8 border-green-500 rounded-lg p-5 shadow-md transition-all duration-300 flex flex-col">
+                <div class="flex items-center justify-between mb-3">
+                    <div>
+                        <h3 class="text-xl font-bold text-gray-800">Pole 3</h3>
+                        <p class="text-sm text-gray-500">左側深處監測點</p>
+                    </div>
+                    <div class="status-badge bg-green-100 text-green-700 px-4 py-2 rounded-full font-bold text-lg">
+                        直立
+                    </div>
                 </div>
-                <div class="status-badge bg-green-100 text-green-700 px-4 py-2 rounded-full font-bold text-lg">
-                    直立
+                <div class="bg-gray-200 rounded p-2 flex items-center">
+                    <span class="text-xs text-gray-500 font-bold mr-2">Microbit 訊號:</span>
+                    <span id="log-3" class="text-sm font-mono text-gray-800 tracking-wide">等待接收...</span>
                 </div>
             </div>
         </div>
@@ -348,6 +366,10 @@
             if (state.currentMode === 'microbit') {
                 simBtn.disabled = true; // Microbit 模式下禁用手動模擬按鈕
                 recoverAll(); // 切換時自動將場景復原直立
+                // 清除 UI 上的舊訊號文字
+                document.getElementById('log-1').textContent = '等待接收...';
+                document.getElementById('log-2').textContent = '等待接收...';
+                document.getElementById('log-3').textContent = '等待接收...';
             } else {
                 simBtn.disabled = false;
             }
@@ -620,7 +642,8 @@
             state.serialBuffer = lines.pop(); 
 
             lines.forEach(line => {
-                const text = line.trim().toLowerCase();
+                const originalText = line.trim();
+                const text = originalText.toLowerCase();
                 if (!text) return;
                 
                 console.log(`收到 Microbit Serial 廣播: ${text}`);
@@ -632,11 +655,17 @@
                     if (!poleData) return;
 
                     if (text.includes(`${id} down`)) {
+                        // 更新 UI 狀態列顯示收到的字串
+                        document.getElementById(`log-${id}`).textContent = originalText;
+
                         // 若支柱直立且目前尚未發生大雪崩，則讓其倒下
                         if (!poleData.isFallen && !state.isAvalanche) {
                             knockDownPole(poleData);
                         }
                     } else if (text.includes(`${id} up`)) {
+                        // 更新 UI 狀態列顯示收到的字串
+                        document.getElementById(`log-${id}`).textContent = originalText;
+
                         // 若支柱倒下，則讓其重新直立
                         if (poleData.isFallen) {
                             standUpPole(poleData);
