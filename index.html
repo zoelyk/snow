@@ -170,7 +170,7 @@
 
             <button onclick="connectMicrobit()" id="btn-microbit" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-6 rounded-full shadow transition-colors flex items-center">
                 <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
-                連接 Microbit
+                連接 Microbit (Serial)
             </button>
         </div>
     </header>
@@ -268,12 +268,10 @@
             alarmInterval: null,
             audioCtx: null,
             pileTimer: null, // 底部積雪計時器
-            currentMode: 'virtual' // 新增模式狀態：'virtual' 或 'microbit'
+            currentMode: 'virtual', // 模式狀態：'virtual' 或 'microbit'
+            serialPort: null, // 儲存 Serial Port 實體
+            serialBuffer: '' // 用於處理 Serial 資料的緩衝區
         };
-
-        // Microbit UART 服務 UUID 設定 (用於接收廣播文字)
-        const UART_SERVICE_UUID = '6e400001-b5a3-f393-e0a9-e50e24dcca9e';
-        const UART_TX_CHARACTERISTIC_UUID = '6e400003-b5a3-f393-e0a9-e50e24dcca9e';
 
         // 支柱設定
         const POLE_COUNT_PER_SIDE = 8;
@@ -342,7 +340,7 @@
             });
         }
 
-        // 新增：切換模式功能
+        // 切換模式功能
         function toggleMode() {
             state.currentMode = document.getElementById('mode-select').value;
             const simBtn = document.getElementById('btn-sim-avalanche');
@@ -561,66 +559,90 @@
             document.getElementById('alarm-text').classList.add('hidden');
         }
 
-        // 模擬藍牙連接 Micro:bit
+        // Web Serial API 連接 Micro:bit
         async function connectMicrobit() {
+            if (!("serial" in navigator)) {
+                alert("您的瀏覽器不支援 Web Serial API。建議使用 Google Chrome 或 Microsoft Edge 瀏覽器。");
+                return;
+            }
+
             try {
-                // 要求使用者在瀏覽器中選擇藍牙裝置
-                const device = await navigator.bluetooth.requestDevice({
-                    filters: [{ namePrefix: 'BBC micro:bit' }],
-                    optionalServices: [UART_SERVICE_UUID] 
-                });
+                // 要求使用者在瀏覽器中選擇 Serial 裝置
+                const port = await navigator.serial.requestPort();
                 
-                // 連線到 GATT 伺服器並獲取 UART 服務
-                const server = await device.gatt.connect();
-                const service = await server.getPrimaryService(UART_SERVICE_UUID);
-                const characteristic = await service.getCharacteristic(UART_TX_CHARACTERISTIC_UUID);
+                // 開啟 Serial 通訊埠 (Micro:bit MakeCode 預設波特率通常為 115200)
+                await port.open({ baudRate: 115200 });
+                state.serialPort = port;
                 
-                // 啟動通知以接收 Microbit 廣播文字
-                await characteristic.startNotifications();
-                characteristic.addEventListener('characteristicvaluechanged', handleMicrobitData);
-                
-                alert(`成功連接至裝置: ${device.name}\n系統現已可接收 "1 Down", "2 Down", "3 Down" 等藍牙廣播。`);
+                alert(`成功連接至裝置！\n系統現已可透過 Serial 接收 "1 Down", "2 Down", "3 Down" 等廣播。`);
                 
                 // 更新按鈕 UI
                 const btn = document.getElementById(`btn-microbit`);
                 btn.classList.replace('bg-blue-600', 'bg-green-600');
                 btn.classList.replace('hover:bg-blue-700', 'hover:bg-green-700');
-                btn.innerHTML = `<svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg> 已連接 Microbit`;
+                btn.innerHTML = `<svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg> 已連接 Microbit (Serial)`;
+
+                // 設定資料讀取流
+                const textDecoder = new TextDecoderStream();
+                const readableStreamClosed = port.readable.pipeTo(textDecoder.writable);
+                const reader = textDecoder.readable.getReader();
+
+                // 進入迴圈持續讀取 Serial 資料
+                while (true) {
+                    const { value, done } = await reader.read();
+                    if (done) {
+                        // 讀取流被關閉
+                        reader.releaseLock();
+                        break;
+                    }
+                    if (value) {
+                        handleSerialData(value);
+                    }
+                }
                 
             } catch (error) {
-                console.log(error);
-                // 提供回饋 (使用者取消或無藍牙硬體)
-                alert(`連接取消或失敗。請確認您的設備支援 Web Bluetooth 且 Micro:bit 已開啟配對模式。\n\n詳細錯誤: ${error.message}`);
+                console.error(error);
+                // 提供回饋 (使用者取消或無法連接)
+                alert(`連接取消或失敗。請確認您的 Micro:bit 已正確連接 USB 線。\n\n詳細錯誤: ${error.message}`);
             }
         }
 
-        // 新增：處理接收到的 Microbit 藍牙資料
-        function handleMicrobitData(event) {
+        // 處理接收到的 Serial 資料 (因為資料可能會分段傳送，需要用換行符號切割緩衝區)
+        function handleSerialData(chunk) {
             if (state.currentMode !== 'microbit') return; // 只在 Microbit 模式下生效
 
-            const value = event.target.value;
-            const decoder = new TextDecoder('utf-8');
-            const text = decoder.decode(value).trim().toLowerCase(); 
+            state.serialBuffer += chunk;
             
-            console.log(`收到 Microbit 廣播: ${text}`);
+            // 根據換行符號切割累積的資料
+            let lines = state.serialBuffer.split(/\r?\n/);
+            
+            // 將最後一段可能還沒傳送完整的字串放回緩衝區
+            state.serialBuffer = lines.pop(); 
 
-            // 解析並執行指令 ("1 down", "1 up", 等)
-            const specialPolesIds = [1, 2, 3];
-            specialPolesIds.forEach(id => {
-                const poleData = state.poles.find(p => p.specialId === id);
-                if (!poleData) return;
+            lines.forEach(line => {
+                const text = line.trim().toLowerCase();
+                if (!text) return;
+                
+                console.log(`收到 Microbit Serial 廣播: ${text}`);
 
-                if (text.includes(`${id} down`)) {
-                    // 若支柱直立且目前尚未發生大雪崩，則讓其倒下
-                    if (!poleData.isFallen && !state.isAvalanche) {
-                        knockDownPole(poleData);
+                // 解析並執行指令 ("1 down", "1 up", 等)
+                const specialPolesIds = [1, 2, 3];
+                specialPolesIds.forEach(id => {
+                    const poleData = state.poles.find(p => p.specialId === id);
+                    if (!poleData) return;
+
+                    if (text.includes(`${id} down`)) {
+                        // 若支柱直立且目前尚未發生大雪崩，則讓其倒下
+                        if (!poleData.isFallen && !state.isAvalanche) {
+                            knockDownPole(poleData);
+                        }
+                    } else if (text.includes(`${id} up`)) {
+                        // 若支柱倒下，則讓其重新直立
+                        if (poleData.isFallen) {
+                            standUpPole(poleData);
+                        }
                     }
-                } else if (text.includes(`${id} up`)) {
-                    // 若支柱倒下，則讓其重新直立
-                    if (poleData.isFallen) {
-                        standUpPole(poleData);
-                    }
-                }
+                });
             });
         }
 
