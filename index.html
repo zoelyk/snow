@@ -143,6 +143,18 @@
         .alarm-active {
             animation: flash-red 1s infinite;
         }
+
+        .signal-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: #94a3b8;
+            transition: background-color 0.1s;
+        }
+        .signal-active {
+            background-color: #10b981;
+            box-shadow: 0 0 8px #10b981;
+        }
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen flex flex-col font-sans">
@@ -220,9 +232,12 @@
                         直立
                     </div>
                 </div>
-                <div class="bg-gray-200 rounded p-2 flex items-center">
-                    <span class="text-xs text-gray-500 font-bold mr-2">Serial 訊號:</span>
-                    <span id="log-1" class="text-sm font-mono text-gray-800">無訊號</span>
+                <div class="bg-gray-200 rounded p-2 flex items-center justify-between">
+                    <div class="flex items-center overflow-hidden">
+                        <span class="text-xs text-gray-500 font-bold mr-2 whitespace-nowrap">訊號:</span>
+                        <span id="log-1" class="text-sm font-mono text-gray-800 truncate">無訊號</span>
+                    </div>
+                    <div id="dot-1" class="signal-dot flex-shrink-0 ml-2"></div>
                 </div>
             </div>
             <!-- 咭牌 2 -->
@@ -236,9 +251,12 @@
                         直立
                     </div>
                 </div>
-                <div class="bg-gray-200 rounded p-2 flex items-center">
-                    <span class="text-xs text-gray-500 font-bold mr-2">Serial 訊號:</span>
-                    <span id="log-2" class="text-sm font-mono text-gray-800">無訊號</span>
+                <div class="bg-gray-200 rounded p-2 flex items-center justify-between">
+                    <div class="flex items-center overflow-hidden">
+                        <span class="text-xs text-gray-500 font-bold mr-2 whitespace-nowrap">訊號:</span>
+                        <span id="log-2" class="text-sm font-mono text-gray-800 truncate">無訊號</span>
+                    </div>
+                    <div id="dot-2" class="signal-dot flex-shrink-0 ml-2"></div>
                 </div>
             </div>
             <!-- 咭牌 3 -->
@@ -252,9 +270,12 @@
                         直立
                     </div>
                 </div>
-                <div class="bg-gray-200 rounded p-2 flex items-center">
-                    <span class="text-xs text-gray-500 font-bold mr-2">Serial 訊號:</span>
-                    <span id="log-3" class="text-sm font-mono text-gray-800">無訊號</span>
+                <div class="bg-gray-200 rounded p-2 flex items-center justify-between">
+                    <div class="flex items-center overflow-hidden">
+                        <span class="text-xs text-gray-500 font-bold mr-2 whitespace-nowrap">訊號:</span>
+                        <span id="log-3" class="text-sm font-mono text-gray-800 truncate">無訊號</span>
+                    </div>
+                    <div id="dot-3" class="signal-dot flex-shrink-0 ml-2"></div>
                 </div>
             </div>
         </div>
@@ -326,14 +347,17 @@
             if (state.currentMode === 'microbit') {
                 simBtn.disabled = true;
                 recoverAll();
-                [1,2,3].forEach(id => document.getElementById(`log-${id}`).textContent = '等待訊號...');
+                [1,2,3].forEach(id => {
+                    document.getElementById(`log-${id}`).textContent = '等待訊號...';
+                    document.getElementById(`dot-${id}`).classList.remove('signal-active');
+                });
             } else {
                 simBtn.disabled = false;
             }
         }
 
         function knockDownPole(poleData) {
-            if (poleData.isFallen) return;
+            if (poleData.isFallen) return; // 狀態相同不更新
             poleData.isFallen = true;
             poleData.element.classList.add('fallen');
             if (poleData.isSpecial) updateCards();
@@ -348,7 +372,7 @@
         }
 
         function standUpPole(poleData) {
-            if (!poleData.isFallen) return;
+            if (!poleData.isFallen) return; // 狀態相同不更新
             poleData.isFallen = false;
             poleData.element.classList.remove('fallen');
             if (poleData.isSpecial) updateCards();
@@ -496,26 +520,39 @@
             if (state.currentMode !== 'microbit') return;
             state.serialBuffer += chunk;
             
+            // 處理粘包與分段資料
             let lines = state.serialBuffer.split(/\r?\n/);
-            state.serialBuffer = lines.pop(); 
+            state.serialBuffer = lines.pop(); // 保留不完整的一行
 
             lines.forEach(line => {
                 const originalText = line.trim();
                 const text = originalText.toLowerCase();
                 if (!text) return;
                 
-                console.log("收到指令:", text);
-
+                // 解析指令並執行
                 [1, 2, 3].forEach(id => {
                     const pole = state.poles.find(p => p.specialId === id);
                     if (!pole) return;
 
-                    if (text.includes(`${id} down`)) {
-                        document.getElementById(`log-${id}`).textContent = originalText.toUpperCase();
-                        if (!pole.isFallen && !state.isAvalanche) knockDownPole(pole);
-                    } else if (text.includes(`${id} up`)) {
-                        document.getElementById(`log-${id}`).textContent = originalText.toUpperCase();
-                        if (pole.isFallen) standUpPole(pole);
+                    // 檢查指令是否針對此特定 Pole
+                    const isDown = text.includes(`${id} down`);
+                    const isUp = text.includes(`${id} up`);
+
+                    if (isDown || isUp) {
+                        // 更新 UI 指令文字與閃爍指示燈
+                        const logEl = document.getElementById(`log-${id}`);
+                        const dotEl = document.getElementById(`dot-${id}`);
+                        
+                        logEl.textContent = originalText.toUpperCase();
+                        dotEl.classList.add('signal-active');
+                        setTimeout(() => dotEl.classList.remove('signal-active'), 100);
+
+                        // 只有狀態真的改變時才觸發動作 (防止邊界抖動)
+                        if (isDown && !pole.isFallen && !state.isAvalanche) {
+                            knockDownPole(pole);
+                        } else if (isUp && pole.isFallen) {
+                            standUpPole(pole);
+                        }
                     }
                 });
             });
