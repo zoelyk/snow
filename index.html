@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>滑雪場雪崩監控器 - 藍芽版</title>
+    <title>滑雪場雪崩監控器 - Serial 版</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         /* 3D 場景與視角設定 */
@@ -60,7 +60,7 @@
             border-radius: 2px;
         }
         
-        /* 倒塌狀態：向斜坡下方（畫面底部）跌下 */
+        /* 倒塌狀態：向斜坡下方跌下 */
         .pole-container.fallen .pole {
             transform: rotateX(-175deg) rotateZ(15deg); 
             background: #cbd5e1;
@@ -154,14 +154,14 @@
             
             <select id="mode-select" onchange="toggleMode()" class="bg-gray-100 border-2 border-gray-300 text-gray-800 font-bold py-2 px-4 rounded-xl shadow-sm focus:outline-none focus:border-blue-500 transition-colors cursor-pointer">
                 <option value="virtual">電腦虛擬雪崩 (手動)</option>
-                <option value="microbit">Microbit 模擬 (藍芽)</option>
+                <option value="microbit">Microbit 模擬 (Serial)</option>
             </select>
 
             <div class="w-px h-8 bg-gray-300 mx-2 hidden sm:block"></div>
 
             <button onclick="connectMicrobit()" id="btn-microbit" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-6 rounded-full shadow transition-colors flex items-center">
                 <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
-                連接 Microbit (藍芽)
+                連接 Microbit (Serial)
             </button>
         </div>
     </header>
@@ -221,8 +221,8 @@
                     </div>
                 </div>
                 <div class="bg-gray-200 rounded p-2 flex items-center">
-                    <span class="text-xs text-gray-500 font-bold mr-2">藍芽訊號:</span>
-                    <span id="log-1" class="text-sm font-mono text-gray-800">等待中...</span>
+                    <span class="text-xs text-gray-500 font-bold mr-2">Serial 訊號:</span>
+                    <span id="log-1" class="text-sm font-mono text-gray-800">無訊號</span>
                 </div>
             </div>
             <!-- 咭牌 2 -->
@@ -237,8 +237,8 @@
                     </div>
                 </div>
                 <div class="bg-gray-200 rounded p-2 flex items-center">
-                    <span class="text-xs text-gray-500 font-bold mr-2">藍芽訊號:</span>
-                    <span id="log-2" class="text-sm font-mono text-gray-800">等待中...</span>
+                    <span class="text-xs text-gray-500 font-bold mr-2">Serial 訊號:</span>
+                    <span id="log-2" class="text-sm font-mono text-gray-800">無訊號</span>
                 </div>
             </div>
             <!-- 咭牌 3 -->
@@ -253,8 +253,8 @@
                     </div>
                 </div>
                 <div class="bg-gray-200 rounded p-2 flex items-center">
-                    <span class="text-xs text-gray-500 font-bold mr-2">藍芽訊號:</span>
-                    <span id="log-3" class="text-sm font-mono text-gray-800">等待中...</span>
+                    <span class="text-xs text-gray-500 font-bold mr-2">Serial 訊號:</span>
+                    <span id="log-3" class="text-sm font-mono text-gray-800">無訊號</span>
                 </div>
             </div>
         </div>
@@ -267,12 +267,9 @@
             alarmInterval: null,
             audioCtx: null,
             currentMode: 'virtual',
-            bluetoothCharacteristic: null
+            serialPort: null,
+            serialBuffer: ''
         };
-
-        // Micro:bit UART UUIDs
-        const UART_SERVICE_UUID = '6e400001-b5a3-f393-e0a9-e50e24dcca9e';
-        const UART_TX_CHARACTERISTIC_UUID = '6e400003-b5a3-f393-e0a9-e50e24dcca9e';
 
         const POLE_COUNT_PER_SIDE = 8;
         const SPECIAL_POLES = {
@@ -466,47 +463,61 @@
             document.getElementById('alarm-text').classList.add('hidden');
         }
 
-        // Web Bluetooth 連接
+        // Web Serial API 連接
         async function connectMicrobit() {
+            if (!("serial" in navigator)) {
+                alert("瀏覽器不支援 Web Serial API。請使用 Chrome 或 Edge。");
+                return;
+            }
             try {
-                const device = await navigator.bluetooth.requestDevice({
-                    filters: [{ namePrefix: 'BBC micro:bit' }],
-                    optionalServices: [UART_SERVICE_UUID]
-                });
-                
-                const server = await device.gatt.connect();
-                const service = await server.getPrimaryService(UART_SERVICE_UUID);
-                const characteristic = await service.getCharacteristic(UART_TX_CHARACTERISTIC_UUID);
-                
-                await characteristic.startNotifications();
-                characteristic.addEventListener('characteristicvaluechanged', handleBluetoothData);
+                const port = await navigator.serial.requestPort();
+                await port.open({ baudRate: 115200 });
+                state.serialPort = port;
                 
                 const btn = document.getElementById('btn-microbit');
                 btn.classList.replace('bg-blue-600', 'bg-green-600');
-                btn.innerHTML = `✅ 已連接 (藍芽)`;
-                alert(`連線成功！請將監控模式切換至 "Microbit 模擬"。`);
+                btn.innerHTML = `✅ 已連接 (Serial)`;
+
+                const textDecoder = new TextDecoderStream();
+                const readableStreamClosed = port.readable.pipeTo(textDecoder.writable);
+                const reader = textDecoder.readable.getReader();
+
+                while (true) {
+                    const { value, done } = await reader.read();
+                    if (done) break;
+                    if (value) handleSerialData(value);
+                }
             } catch (error) {
-                alert(`藍芽連接失敗: ${error.message}`);
+                alert(`Serial 連接失敗: ${error.message}`);
             }
         }
 
-        function handleBluetoothData(event) {
+        function handleSerialData(chunk) {
             if (state.currentMode !== 'microbit') return;
-            const decoder = new TextDecoder('utf-8');
-            const text = decoder.decode(event.target.value).trim().toLowerCase();
-            if (!text) return;
+            state.serialBuffer += chunk;
+            
+            let lines = state.serialBuffer.split(/\r?\n/);
+            state.serialBuffer = lines.pop(); 
 
-            [1, 2, 3].forEach(id => {
-                const pole = state.poles.find(p => p.specialId === id);
-                if (!pole) return;
+            lines.forEach(line => {
+                const originalText = line.trim();
+                const text = originalText.toLowerCase();
+                if (!text) return;
+                
+                console.log("收到指令:", text);
 
-                if (text.includes(`${id} down`)) {
-                    document.getElementById(`log-${id}`).textContent = text.toUpperCase();
-                    if (!pole.isFallen && !state.isAvalanche) knockDownPole(pole);
-                } else if (text.includes(`${id} up`)) {
-                    document.getElementById(`log-${id}`).textContent = text.toUpperCase();
-                    if (pole.isFallen) standUpPole(pole);
-                }
+                [1, 2, 3].forEach(id => {
+                    const pole = state.poles.find(p => p.specialId === id);
+                    if (!pole) return;
+
+                    if (text.includes(`${id} down`)) {
+                        document.getElementById(`log-${id}`).textContent = originalText.toUpperCase();
+                        if (!pole.isFallen && !state.isAvalanche) knockDownPole(pole);
+                    } else if (text.includes(`${id} up`)) {
+                        document.getElementById(`log-${id}`).textContent = originalText.toUpperCase();
+                        if (pole.isFallen) standUpPole(pole);
+                    }
+                });
             });
         }
 
