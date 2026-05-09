@@ -239,6 +239,7 @@
             currentMode: 'virtual',
             serialPort: null,
             serialBuffer: '',
+            pileTimer: null, // 加入底部雪堆計時器狀態
             // 用於儲存每個支柱最後一次切換狀態的時間，防止快速抖動
             lastToggleTime: { 1: 0, 2: 0, 3: 0 } 
         };
@@ -275,7 +276,10 @@
             if (specialId) pole.classList.add(`special-${specialId}`);
             container.appendChild(pole);
             parent.appendChild(container);
-            state.poles.push({ id, element: container, isFallen: false, specialId });
+            
+            // 增加 avalancheTimer，用來記錄雪崩動畫的倒塌計時器
+            state.poles.push({ id, element: container, isFallen: false, specialId, recoverTimer: null, avalancheTimer: null });
+            
             container.onclick = () => {
                 if (state.currentMode === 'virtual' && !state.isAvalanche) knockDownPole(state.poles.find(p=>p.id===id));
             };
@@ -293,7 +297,10 @@
             p.element.classList.add('fallen');
             updateCards();
             checkGlobalAlarm();
-            if (state.currentMode === 'virtual') setTimeout(() => { if(!state.isAvalanche) standUpPole(p); }, 5000);
+            if (state.currentMode === 'virtual') {
+                if (p.recoverTimer) clearTimeout(p.recoverTimer);
+                p.recoverTimer = setTimeout(() => { if(!state.isAvalanche) standUpPole(p); }, 5000);
+            }
         }
 
         function standUpPole(p) {
@@ -323,10 +330,14 @@
             if (state.isAvalanche) return;
             state.isAvalanche = true;
             document.getElementById('avalanche-wave').classList.add('active');
-            setTimeout(() => document.getElementById('bottom-snow-pile').classList.add('active'), 1000);
+            
+            if (state.pileTimer) clearTimeout(state.pileTimer);
+            state.pileTimer = setTimeout(() => document.getElementById('bottom-snow-pile').classList.add('active'), 1000);
+            
             state.poles.forEach(p => {
+                if (p.avalancheTimer) clearTimeout(p.avalancheTimer); // 防呆
                 const delay = (parseInt(p.element.style.top) / 800) * 1500 + 200;
-                setTimeout(() => knockDownPole(p), delay);
+                p.avalancheTimer = setTimeout(() => knockDownPole(p), delay); // 記錄下這個計時器
             });
             triggerAlarm();
         }
@@ -334,9 +345,25 @@
         function recoverAll() {
             state.isAvalanche = false;
             stopAlarm();
+            
+            // 移除動畫特效
             document.getElementById('avalanche-wave').classList.remove('active');
             document.getElementById('bottom-snow-pile').classList.remove('active');
-            state.poles.forEach(p => standUpPole(p));
+            if (state.pileTimer) clearTimeout(state.pileTimer);
+            document.querySelectorAll('.avalanche-debris').forEach(el => el.remove());
+            
+            // 強制清除所有支柱正在進行的幽靈動畫計時器
+            state.poles.forEach(p => {
+                if (p.avalancheTimer) {
+                    clearTimeout(p.avalancheTimer);
+                    p.avalancheTimer = null;
+                }
+                if (p.recoverTimer) {
+                    clearTimeout(p.recoverTimer);
+                    p.recoverTimer = null;
+                }
+                standUpPole(p);
+            });
         }
 
         function triggerAlarm() {
