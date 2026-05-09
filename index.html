@@ -63,8 +63,9 @@
         
         /* 倒塌狀態 */
         .pole-container.fallen .pole {
-            transform: rotateX(-175deg) rotateZ(15deg); /* 順著斜坡向下跌，並帶一點側翻 */
-            background: #e2e8f0; /* 被雪覆蓋變淺色 */
+            transform: rotateX(-175deg) rotateZ(15deg); /* 順著斜坡向下跌 */
+            background: #cbd5e1;
+            box-shadow: 0 5px 10px rgba(0,0,0,0.1);
         }
 
         /* 特殊支柱顏色 */
@@ -92,7 +93,7 @@
             z-index: 20;
         }
         #avalanche-wave.active {
-            top: 1000px; /* 衝過整個滑雪道 */
+            top: 1000px;
             opacity: 1;
         }
 
@@ -109,19 +110,19 @@
         .sb-4 { width: 200px; height: 200px; bottom: -110px; left: 70%; }
         .sb-5 { width: 160px; height: 160px; bottom: -70px; left: 90%; }
 
-        /* 底部雪粒累積 (隆起的雪堆) */
+        /* 底部雪粒累積 */
         #bottom-snow-pile {
             position: absolute;
-            bottom: -350px; /* 初始隱藏在底部 */
+            bottom: -350px;
             left: -20%;
             width: 140%;
             height: 300px;
-            z-index: 30; /* 覆蓋在柱子上方 */
+            z-index: 30;
             pointer-events: none;
             transition: bottom 1.2s cubic-bezier(0.2, 0.8, 0.4, 1);
         }
         #bottom-snow-pile.active {
-            bottom: -50px; /* 雪崩抵達時隆起 */
+            bottom: -50px;
         }
         .pile-circle {
             position: absolute;
@@ -163,14 +164,14 @@
             
             <!-- 模式選擇下拉選單 -->
             <select id="mode-select" onchange="toggleMode()" class="bg-gray-100 border-2 border-gray-300 text-gray-800 font-bold py-2 px-4 rounded-xl shadow-sm focus:outline-none focus:border-blue-500 transition-colors cursor-pointer">
-                <option value="virtual">電腦虛擬雪崩</option>
-                <option value="microbit">Microbit模擬</option>
+                <option value="virtual">電腦虛擬雪崩 (手動)</option>
+                <option value="microbit">Microbit 模擬 (Serial)</option>
             </select>
-            <div class="w-px h-8 bg-gray-300 mx-2 hidden sm:block"></div> <!-- 分隔線 -->
+            <div class="w-px h-8 bg-gray-300 mx-2 hidden sm:block"></div>
 
             <button onclick="connectMicrobit()" id="btn-microbit" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-6 rounded-full shadow transition-colors flex items-center">
                 <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
-                連接 Microbit (Serial)
+                連接 Microbit (USB Serial)
             </button>
         </div>
     </header>
@@ -178,7 +179,6 @@
     <!-- 互動場景區塊 -->
     <main class="flex-grow relative flex flex-col items-center justify-center p-4">
         
-        <!-- 全局警報覆蓋層 -->
         <div id="alarm-overlay" class="absolute inset-0 z-0 pointer-events-none transition-colors duration-300"></div>
 
         <div class="relative w-full max-w-5xl h-[600px] border-4 border-gray-300 rounded-2xl shadow-inner scene-viewport" id="scene-container">
@@ -189,10 +189,7 @@
 
             <!-- 3D 空間 -->
             <div class="world" id="world">
-
                 <div class="piste"></div>
-                
-                <!-- 雪崩主波浪與前緣雪粒(圓形) -->
                 <div id="avalanche-wave">
                     <div class="snow-boulder sb-1"></div>
                     <div class="snow-boulder sb-2"></div>
@@ -200,21 +197,16 @@
                     <div class="snow-boulder sb-4"></div>
                     <div class="snow-boulder sb-5"></div>
                 </div>
-
-                <!-- 支柱將透過 JavaScript 動態生成在這裡 -->
-
-                <!-- 底部雪崩累積層 -->
                 <div id="bottom-snow-pile">
                     <div class="pile-circle pc-1"></div>
                     <div class="pile-circle pc-2"></div>
                     <div class="pile-circle pc-3"></div>
                 </div>
-
             </div>
 
             <!-- 右下角控制按鈕 -->
             <div class="absolute bottom-6 right-6 flex flex-col gap-3 z-20">
-                <button id="btn-sim-avalanche" onclick="simulateAvalanche()" class="bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-6 rounded-xl shadow-lg transform transition hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100">
+                <button id="btn-sim-avalanche" onclick="simulateAvalanche()" class="bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-6 rounded-xl shadow-lg transform transition hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed">
                     🌋 模擬雪崩
                 </button>
                 <button onclick="recoverAll()" class="bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-xl shadow-lg transform transition hover:scale-105">
@@ -232,15 +224,15 @@
                 <div class="flex items-center justify-between mb-3">
                     <div>
                         <h3 class="text-xl font-bold text-gray-800">Pole 1</h3>
-                        <p class="text-sm text-gray-500">左側監測點</p>
+                        <p class="text-sm text-gray-500">左側監測 (Pin 1)</p>
                     </div>
                     <div class="status-badge bg-green-100 text-green-700 px-4 py-2 rounded-full font-bold text-lg">
                         直立
                     </div>
                 </div>
                 <div class="bg-gray-200 rounded p-2 flex items-center">
-                    <span class="text-xs text-gray-500 font-bold mr-2">Microbit 訊號:</span>
-                    <span id="log-1" class="text-sm font-mono text-gray-800 tracking-wide">等待接收...</span>
+                    <span class="text-xs text-gray-500 font-bold mr-2">最新訊號:</span>
+                    <span id="log-1" class="text-sm font-mono text-gray-800">無訊號</span>
                 </div>
             </div>
             <!-- 咭牌 2 -->
@@ -248,15 +240,15 @@
                 <div class="flex items-center justify-between mb-3">
                     <div>
                         <h3 class="text-xl font-bold text-gray-800">Pole 2</h3>
-                        <p class="text-sm text-gray-500">右側監測點</p>
+                        <p class="text-sm text-gray-500">右側監測 (Pin 2)</p>
                     </div>
                     <div class="status-badge bg-green-100 text-green-700 px-4 py-2 rounded-full font-bold text-lg">
                         直立
                     </div>
                 </div>
                 <div class="bg-gray-200 rounded p-2 flex items-center">
-                    <span class="text-xs text-gray-500 font-bold mr-2">Microbit 訊號:</span>
-                    <span id="log-2" class="text-sm font-mono text-gray-800 tracking-wide">等待接收...</span>
+                    <span class="text-xs text-gray-500 font-bold mr-2">最新訊號:</span>
+                    <span id="log-2" class="text-sm font-mono text-gray-800">無訊號</span>
                 </div>
             </div>
             <!-- 咭牌 3 -->
@@ -264,59 +256,68 @@
                 <div class="flex items-center justify-between mb-3">
                     <div>
                         <h3 class="text-xl font-bold text-gray-800">Pole 3</h3>
-                        <p class="text-sm text-gray-500">左側深處監測點</p>
+                        <p class="text-sm text-gray-500">深處監測 (Pin 3)</p>
                     </div>
                     <div class="status-badge bg-green-100 text-green-700 px-4 py-2 rounded-full font-bold text-lg">
                         直立
                     </div>
                 </div>
                 <div class="bg-gray-200 rounded p-2 flex items-center">
-                    <span class="text-xs text-gray-500 font-bold mr-2">Microbit 訊號:</span>
-                    <span id="log-3" class="text-sm font-mono text-gray-800 tracking-wide">等待接收...</span>
+                    <span class="text-xs text-gray-500 font-bold mr-2">最新訊號:</span>
+                    <span id="log-3" class="text-sm font-mono text-gray-800">無訊號</span>
                 </div>
             </div>
         </div>
     </footer>
 
     <script>
-        // 系統狀態
+        /**
+         * Micro:bit 端代碼建議 (MakeCode):
+         * --------------------------------------------------
+         * forever(() => {
+         * let dist1 = sonar.ping(DigitalPin.P1, DigitalPin.P1, PingUnit.Centimeters)
+         * if (dist1 < 5 && dist1 > 0) { serial.writeLine("1 down") } else { serial.writeLine("1 up") }
+         * * let dist2 = sonar.ping(DigitalPin.P2, DigitalPin.P2, PingUnit.Centimeters)
+         * if (dist2 < 5 && dist2 > 0) { serial.writeLine("2 down") } else { serial.writeLine("2 up") }
+         * * let dist3 = sonar.ping(DigitalPin.P8, DigitalPin.P8, PingUnit.Centimeters) // 假設 Pin 3
+         * if (dist3 < 5 && dist3 > 0) { serial.writeLine("3 down") } else { serial.writeLine("3 up") }
+         * * basic.pause(200)
+         * })
+         * --------------------------------------------------
+         */
+
         const state = {
-            poles: [], // 儲存所有支柱狀態
+            poles: [],
             isAvalanche: false,
             alarmInterval: null,
             audioCtx: null,
-            pileTimer: null, // 底部積雪計時器
-            currentMode: 'virtual', // 模式狀態：'virtual' 或 'microbit'
-            serialPort: null, // 儲存 Serial Port 實體
-            serialBuffer: '' // 用於處理 Serial 資料的緩衝區
+            pileTimer: null,
+            currentMode: 'virtual',
+            serialPort: null,
+            serialBuffer: ''
         };
 
-        // 支柱設定
         const POLE_COUNT_PER_SIDE = 8;
         const SPECIAL_POLES = {
-            'L-2': { id: 1, name: 'Pole 1', colorClass: 'special-1' }, // 左側第3支
-            'R-4': { id: 2, name: 'Pole 2', colorClass: 'special-2' }, // 右側第5支
-            'L-6': { id: 3, name: 'Pole 3', colorClass: 'special-3' }  // 左側第7支
+            'L-2': { id: 1, name: 'Pole 1', colorClass: 'special-1' },
+            'R-4': { id: 2, name: 'Pole 2', colorClass: 'special-2' },
+            'L-6': { id: 3, name: 'Pole 3', colorClass: 'special-3' }
         };
 
-        // 初始化場景
         function initScene() {
             const world = document.getElementById('world');
-            const leftX = 50;  // 左側相對於world的X座標
-            const rightX = 430; // 右側相對於world的X座標
-            const startY = 80;  // 起始Y座標 (稍微往下移以留出空間給雪山)
-            const spacingY = 90; // 支柱間距
+            const leftX = 50;
+            const rightX = 430;
+            const startY = 80;
+            const spacingY = 90;
 
             for (let i = 0; i < POLE_COUNT_PER_SIDE; i++) {
-                // 左側支柱
                 createPoleElement(world, `L-${i}`, leftX, startY + (i * spacingY));
-                // 右側支柱
                 createPoleElement(world, `R-${i}`, rightX, startY + (i * spacingY));
             }
             updateCards();
         }
 
-        // 建立支柱DOM
         function createPoleElement(parent, id, x, y) {
             const container = document.createElement('div');
             container.className = 'pole-container';
@@ -326,7 +327,6 @@
             const pole = document.createElement('div');
             pole.className = 'pole';
             
-            // 檢查是否為特殊支柱
             let isSpecial = false;
             let specialId = null;
             if (SPECIAL_POLES[id]) {
@@ -338,7 +338,6 @@
             container.appendChild(pole);
             parent.appendChild(container);
 
-            // 儲存狀態
             const poleData = {
                 id: id,
                 element: container,
@@ -349,66 +348,55 @@
             };
             state.poles.push(poleData);
 
-            // 點擊事件 (單支倒塌)
             container.addEventListener('click', () => {
-                // Microbit 模式下禁止手動點擊支柱
                 if (state.currentMode === 'virtual' && !state.isAvalanche && !poleData.isFallen) {
                     knockDownPole(poleData);
                 }
             });
         }
 
-        // 切換模式功能
         function toggleMode() {
             state.currentMode = document.getElementById('mode-select').value;
             const simBtn = document.getElementById('btn-sim-avalanche');
-            
             if (state.currentMode === 'microbit') {
-                simBtn.disabled = true; // Microbit 模式下禁用手動模擬按鈕
-                recoverAll(); // 切換時自動將場景復原直立
-                // 清除 UI 上的舊訊號文字
-                document.getElementById('log-1').textContent = '等待接收...';
-                document.getElementById('log-2').textContent = '等待接收...';
-                document.getElementById('log-3').textContent = '等待接收...';
+                simBtn.disabled = true;
+                recoverAll();
+                document.getElementById('log-1').textContent = '等待訊號...';
+                document.getElementById('log-2').textContent = '等待訊號...';
+                document.getElementById('log-3').textContent = '等待訊號...';
             } else {
                 simBtn.disabled = false;
             }
         }
 
-        // 擊倒單一橫桿
         function knockDownPole(poleData) {
+            if (poleData.isFallen) return;
             poleData.isFallen = true;
             poleData.element.classList.add('fallen');
             
             if (poleData.isSpecial) updateCards();
             checkGlobalAlarm();
 
-            // 虛擬模式下：5秒後自動復原
-            // Microbit模式下：不會自動復原，須等待 'up' 指令
             if (state.currentMode === 'virtual') {
                 if (poleData.recoverTimer) clearTimeout(poleData.recoverTimer);
                 poleData.recoverTimer = setTimeout(() => {
-                    if (!state.isAvalanche) {
-                        standUpPole(poleData);
-                    }
+                    if (!state.isAvalanche) standUpPole(poleData);
                 }, 5000);
             }
         }
 
-        // 立起單一橫桿
         function standUpPole(poleData) {
+            if (!poleData.isFallen) return;
             poleData.isFallen = false;
             poleData.element.classList.remove('fallen');
             if (poleData.isSpecial) updateCards();
             checkGlobalAlarm();
         }
 
-        // 更新下方卡片 UI
         function updateCards() {
             state.poles.filter(p => p.isSpecial).forEach(p => {
                 const card = document.getElementById(`card-${p.specialId}`);
                 const badge = card.querySelector('.status-badge');
-                
                 if (p.isFallen) {
                     badge.textContent = '倒下';
                     badge.className = 'status-badge bg-red-100 text-red-700 px-4 py-2 rounded-full font-bold text-lg';
@@ -421,18 +409,16 @@
             });
         }
 
-        // 檢查是否需要觸發全局警報 (大規模倒塌)
         function checkGlobalAlarm() {
-            if (state.isAvalanche) return; // 已經在雪崩狀態就不重複觸發
+            if (state.isAvalanche) return;
             
             if (state.currentMode === 'microbit') {
-                // Microbit 模式：當 3 支特殊支柱都倒下，觸發雪崩動畫及警告
                 const specialFallenCount = state.poles.filter(p => p.isSpecial && p.isFallen).length;
+                // 當 3 支特殊支柱都倒下，自動觸發雪崩
                 if (specialFallenCount >= 3) {
                     simulateAvalanche();
                 }
             } else {
-                // 虛擬模式：如果超過 6 支柱子同時倒下，視為雪崩警報
                 const fallenCount = state.poles.filter(p => p.isFallen).length;
                 if (fallenCount >= 6) {
                     triggerAlarm();
@@ -442,135 +428,91 @@
             }
         }
 
-        // 模擬雪崩按鈕
         function simulateAvalanche() {
             if (state.isAvalanche) return;
             state.isAvalanche = true;
             
-            // 觸發雪崩視覺特效 (巨型波浪及圓球前緣)
             const wave = document.getElementById('avalanche-wave');
             wave.style.transition = 'none';
             wave.style.top = '-600px';
-            
-            // 強制重繪
             void wave.offsetWidth;
-
             wave.style.transition = 'top 2s cubic-bezier(0.4, 0, 0.8, 1), opacity 0.3s';
             wave.classList.add('active');
 
-            // 產生從雪山上大量湧下的飛濺雪塊
             const world = document.getElementById('world');
             for(let i=0; i<60; i++) {
                 const particle = document.createElement('div');
                 particle.className = 'snow-particle avalanche-debris';
-                const size = Math.random() * 60 + 20; // 20px 到 80px 不等的雪塊
+                const size = Math.random() * 60 + 20;
                 particle.style.width = `${size}px`;
                 particle.style.height = `${size}px`;
                 particle.style.left = `${Math.random() * 120 - 10}%`; 
-                // 將起始位置設定得更高，模擬從雪山跌落
                 particle.style.top = `${-200 - Math.random() * 400}px`; 
-                
-                // 給雪塊加上隨機的高度(Z軸)讓其在空中飛舞
                 const zOffset = Math.random() * 150 + 10;
                 particle.style.transform = `translateZ(${zOffset}px)`;
-                
                 world.appendChild(particle);
 
-                // 觸發雪塊掉落動畫
                 setTimeout(() => {
                     particle.style.top = `${1000 + Math.random() * 300}px`;
                     particle.style.left = `calc(${particle.style.left} + ${Math.random() * 60 - 30}%)`;
                 }, 50);
             }
 
-            // 觸發底部雪粒累積 (延遲1.2秒，模擬雪波剛好衝到底部的時機)
             if (state.pileTimer) clearTimeout(state.pileTimer);
             state.pileTimer = setTimeout(() => {
                 document.getElementById('bottom-snow-pile').classList.add('active');
             }, 1200);
 
-            // 依序推倒柱子 (模擬由上往下的真實衝擊)
-            state.poles.forEach((p, index) => {
+            state.poles.forEach((p) => {
                 if (p.recoverTimer) clearTimeout(p.recoverTimer);
-                
-                // 根據 Y 座標計算延遲，讓上方的柱子先倒
                 const yPos = parseInt(p.element.style.top);
                 const delay = (yPos / 800) * 1200 + 300; 
-
-                setTimeout(() => {
-                    p.isFallen = true;
-                    p.element.classList.add('fallen');
-                    if (p.isSpecial) updateCards();
-                }, delay);
+                setTimeout(() => knockDownPole(p), delay);
             });
 
-            // 立即觸發警報
             setTimeout(triggerAlarm, 500);
         }
 
-        // 復原場景按鈕
         function recoverAll() {
             state.isAvalanche = false;
             stopAlarm();
-            
-            // 收起雪崩波浪
-            const wave = document.getElementById('avalanche-wave');
-            wave.classList.remove('active');
-            
-            // 收起底部積雪
+            document.getElementById('avalanche-wave').classList.remove('active');
             if (state.pileTimer) clearTimeout(state.pileTimer);
             document.getElementById('bottom-snow-pile').classList.remove('active');
-
-            // 清除飛濺的碎雪
-            const debris = document.querySelectorAll('.avalanche-debris');
-            debris.forEach(el => el.remove());
-            
-            // 恢復所有柱子
+            document.querySelectorAll('.avalanche-debris').forEach(el => el.remove());
             state.poles.forEach(p => {
                 if (p.recoverTimer) clearTimeout(p.recoverTimer);
                 standUpPole(p);
             });
         }
 
-        // 初始化 Web Audio API 用於警報聲
-        function initAudio() {
-            if (!state.audioCtx) {
-                state.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            }
-        }
-
-        // 播放一次嗶聲
-        function playBeep() {
-            if (!state.audioCtx) return;
-            const osc = state.audioCtx.createOscillator();
-            const gain = state.audioCtx.createGain();
-            osc.type = 'square';
-            osc.frequency.setValueAtTime(800, state.audioCtx.currentTime);
-            osc.frequency.setValueAtTime(1200, state.audioCtx.currentTime + 0.1);
-            
-            gain.gain.setValueAtTime(0.1, state.audioCtx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.001, state.audioCtx.currentTime + 0.4);
-            
-            osc.connect(gain);
-            gain.connect(state.audioCtx.destination);
-            osc.start();
-            osc.stop(state.audioCtx.currentTime + 0.4);
-        }
-
-        // 觸發警報
         function triggerAlarm() {
             if (state.alarmInterval) return;
-            initAudio();
+            if (!state.audioCtx) state.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             
             document.getElementById('alarm-overlay').classList.add('alarm-active');
             document.getElementById('scene-container').classList.add('border-red-500');
             document.getElementById('alarm-text').classList.remove('hidden');
             
+            const playBeep = () => {
+                if (!state.audioCtx) return;
+                const osc = state.audioCtx.createOscillator();
+                const gain = state.audioCtx.createGain();
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(800, state.audioCtx.currentTime);
+                osc.frequency.setValueAtTime(1200, state.audioCtx.currentTime + 0.1);
+                gain.gain.setValueAtTime(0.1, state.audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, state.audioCtx.currentTime + 0.4);
+                osc.connect(gain);
+                gain.connect(state.audioCtx.destination);
+                osc.start();
+                osc.stop(state.audioCtx.currentTime + 0.4);
+            };
+
             playBeep();
             state.alarmInterval = setInterval(playBeep, 800);
         }
 
-        // 停止警報
         function stopAlarm() {
             if (state.alarmInterval) {
                 clearInterval(state.alarmInterval);
@@ -581,64 +523,38 @@
             document.getElementById('alarm-text').classList.add('hidden');
         }
 
-        // Web Serial API 連接 Micro:bit
         async function connectMicrobit() {
             if (!("serial" in navigator)) {
-                alert("您的瀏覽器不支援 Web Serial API。建議使用 Google Chrome 或 Microsoft Edge 瀏覽器。");
+                alert("瀏覽器不支援 Web Serial API。請使用 Chrome 或 Edge。");
                 return;
             }
-
             try {
-                // 要求使用者在瀏覽器中選擇 Serial 裝置
                 const port = await navigator.serial.requestPort();
-                
-                // 開啟 Serial 通訊埠 (Micro:bit MakeCode 預設波特率通常為 115200)
                 await port.open({ baudRate: 115200 });
                 state.serialPort = port;
                 
-                alert(`成功連接至裝置！\n系統現已可透過 Serial 接收 "1 Down", "2 Down", "3 Down" 等廣播。`);
-                
-                // 更新按鈕 UI
                 const btn = document.getElementById(`btn-microbit`);
                 btn.classList.replace('bg-blue-600', 'bg-green-600');
-                btn.classList.replace('hover:bg-blue-700', 'hover:bg-green-700');
-                btn.innerHTML = `<svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg> 已連接 Microbit (Serial)`;
+                btn.innerHTML = `✅ 已連接 Microbit (Serial)`;
 
-                // 設定資料讀取流
                 const textDecoder = new TextDecoderStream();
-                const readableStreamClosed = port.readable.pipeTo(textDecoder.writable);
+                port.readable.pipeTo(textDecoder.writable);
                 const reader = textDecoder.readable.getReader();
 
-                // 進入迴圈持續讀取 Serial 資料
                 while (true) {
                     const { value, done } = await reader.read();
-                    if (done) {
-                        // 讀取流被關閉
-                        reader.releaseLock();
-                        break;
-                    }
-                    if (value) {
-                        handleSerialData(value);
-                    }
+                    if (done) break;
+                    if (value) handleSerialData(value);
                 }
-                
             } catch (error) {
-                console.error(error);
-                // 提供回饋 (使用者取消或無法連接)
-                alert(`連接取消或失敗。請確認您的 Micro:bit 已正確連接 USB 線。\n\n詳細錯誤: ${error.message}`);
+                alert(`連接失敗: ${error.message}`);
             }
         }
 
-        // 處理接收到的 Serial 資料 (因為資料可能會分段傳送，需要用換行符號切割緩衝區)
         function handleSerialData(chunk) {
-            if (state.currentMode !== 'microbit') return; // 只在 Microbit 模式下生效
-
+            if (state.currentMode !== 'microbit') return;
             state.serialBuffer += chunk;
-            
-            // 根據換行符號切割累積的資料
             let lines = state.serialBuffer.split(/\r?\n/);
-            
-            // 將最後一段可能還沒傳送完整的字串放回緩衝區
             state.serialBuffer = lines.pop(); 
 
             lines.forEach(line => {
@@ -646,38 +562,22 @@
                 const text = originalText.toLowerCase();
                 if (!text) return;
                 
-                console.log(`收到 Microbit Serial 廣播: ${text}`);
-
-                // 解析並執行指令 ("1 down", "1 up", 等)
-                const specialPolesIds = [1, 2, 3];
-                specialPolesIds.forEach(id => {
+                [1, 2, 3].forEach(id => {
                     const poleData = state.poles.find(p => p.specialId === id);
                     if (!poleData) return;
 
                     if (text.includes(`${id} down`)) {
-                        // 更新 UI 狀態列顯示收到的字串
                         document.getElementById(`log-${id}`).textContent = originalText;
-
-                        // 若支柱直立且目前尚未發生大雪崩，則讓其倒下
-                        if (!poleData.isFallen && !state.isAvalanche) {
-                            knockDownPole(poleData);
-                        }
+                        if (!poleData.isFallen && !state.isAvalanche) knockDownPole(poleData);
                     } else if (text.includes(`${id} up`)) {
-                        // 更新 UI 狀態列顯示收到的字串
                         document.getElementById(`log-${id}`).textContent = originalText;
-
-                        // 若支柱倒下，則讓其重新直立
-                        if (poleData.isFallen) {
-                            standUpPole(poleData);
-                        }
+                        if (poleData.isFallen) standUpPole(poleData);
                     }
                 });
             });
         }
 
-        // 網頁載入後初始化
         window.addEventListener('DOMContentLoaded', initScene);
-
     </script>
 </body>
 </html>
