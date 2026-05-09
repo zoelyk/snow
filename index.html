@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>滑雪場雪崩監控器 - Serial 版</title>
+    <title>滑雪場雪崩監控器 - Serial 穩定增強版</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         /* 3D 場景與視角設定 */
@@ -16,7 +16,6 @@
             position: relative;
             width: 500px;
             height: 800px;
-            /* 45度角高空俯視感，將左方抬高形成明顯斜坡 */
             transform: rotateX(60deg) rotateY(10deg) rotateZ(-30deg);
             transform-style: preserve-3d;
             background: linear-gradient(135deg, #ffffff 0%, #e2e8f0 100%);
@@ -25,7 +24,6 @@
             margin: -100px auto 0;
         }
 
-        /* 雪道裝飾 */
         .piste {
             position: absolute;
             left: 20%;
@@ -37,7 +35,6 @@
             box-shadow: inset 0 0 30px rgba(255,255,255,0.9);
         }
 
-        /* 支柱樣式 */
         .pole-container {
             position: absolute;
             width: 12px;
@@ -54,24 +51,21 @@
             height: 60px;
             background: #64748b;
             transform-origin: bottom center;
-            transform: rotateX(-90deg); /* 直立 */
+            transform: rotateX(-90deg);
             transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
             box-shadow: inset -2px 0 4px rgba(0,0,0,0.3);
             border-radius: 2px;
         }
         
-        /* 倒塌狀態：向斜坡下方跌下 */
         .pole-container.fallen .pole {
             transform: rotateX(-175deg) rotateZ(15deg); 
             background: #cbd5e1;
-            box-shadow: 0 5px 10px rgba(0,0,0,0.1);
         }
 
-        .pole.special-1 { background: #ef4444; } /* Pole 1: 紅色 */
-        .pole.special-2 { background: #3b82f6; } /* Pole 2: 藍色 */
-        .pole.special-3 { background: #10b981; } /* Pole 3: 綠色 */
+        .pole.special-1 { background: #ef4444; }
+        .pole.special-2 { background: #3b82f6; }
+        .pole.special-3 { background: #10b981; }
 
-        /* 雪崩動畫特效 */
         #avalanche-wave {
             position: absolute;
             top: -600px;
@@ -87,16 +81,13 @@
             pointer-events: none;
             z-index: 20;
         }
-        #avalanche-wave.active {
-            top: 1000px;
-            opacity: 1;
-        }
+        #avalanche-wave.active { top: 1000px; opacity: 1; }
 
         .snow-boulder {
             position: absolute;
             background: #ffffff;
             border-radius: 50%;
-            box-shadow: inset -10px -15px 30px #cbd5e1, 0 15px 20px rgba(0,0,0,0.1);
+            box-shadow: inset -10px -15px 30px #cbd5e1;
         }
         .sb-1 { width: 200px; height: 200px; bottom: -80px; left: -10%; }
         .sb-2 { width: 280px; height: 280px; bottom: -120px; left: 15%; }
@@ -114,9 +105,7 @@
             pointer-events: none;
             transition: bottom 1.2s cubic-bezier(0.2, 0.8, 0.4, 1);
         }
-        #bottom-snow-pile.active {
-            bottom: -50px;
-        }
+        #bottom-snow-pile.active { bottom: -50px; }
         .pile-circle {
             position: absolute;
             background: #ffffff;
@@ -140,9 +129,7 @@
             0%, 100% { background-color: rgba(239, 68, 68, 0.2); }
             50% { background-color: rgba(239, 68, 68, 0.6); }
         }
-        .alarm-active {
-            animation: flash-red 1s infinite;
-        }
+        .alarm-active { animation: flash-red 1s infinite; }
 
         .signal-dot {
             width: 8px;
@@ -151,47 +138,33 @@
             background-color: #94a3b8;
             transition: background-color 0.1s;
         }
-        .signal-active {
-            background-color: #10b981;
-            box-shadow: 0 0 8px #10b981;
-        }
+        .signal-active { background-color: #10b981; box-shadow: 0 0 8px #10b981; }
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen flex flex-col font-sans">
 
-    <!-- 頂部標題與連線控制 -->
     <header class="bg-white shadow-md p-6 text-center z-10 relative">
         <h1 class="text-3xl font-bold text-gray-800 mb-6 tracking-wide">⛷️ 滑雪場雪崩監控器</h1>
         <div class="flex flex-wrap justify-center items-center gap-4">
-            
-            <select id="mode-select" onchange="toggleMode()" class="bg-gray-100 border-2 border-gray-300 text-gray-800 font-bold py-2 px-4 rounded-xl shadow-sm focus:outline-none focus:border-blue-500 transition-colors cursor-pointer">
+            <select id="mode-select" onchange="toggleMode()" class="bg-gray-100 border-2 border-gray-300 text-gray-800 font-bold py-2 px-4 rounded-xl shadow-sm cursor-pointer">
                 <option value="virtual">電腦虛擬雪崩 (手動)</option>
                 <option value="microbit">Microbit 模擬 (Serial)</option>
             </select>
-
             <div class="w-px h-8 bg-gray-300 mx-2 hidden sm:block"></div>
-
             <button onclick="connectMicrobit()" id="btn-microbit" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-6 rounded-full shadow transition-colors flex items-center">
-                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
                 連接 Microbit (Serial)
             </button>
         </div>
     </header>
 
-    <!-- 互動場景 -->
     <main class="flex-grow relative flex flex-col items-center justify-center p-4">
-        
         <div id="alarm-overlay" class="absolute inset-0 z-0 pointer-events-none transition-colors duration-300"></div>
-
         <div class="relative w-full max-w-5xl h-[600px] border-4 border-gray-300 rounded-2xl shadow-inner scene-viewport" id="scene-container">
-            
             <div id="alarm-text" class="absolute top-10 left-0 right-0 text-center text-red-600 font-black text-5xl tracking-widest hidden z-50 drop-shadow-lg">
                 ⚠️ 警報：檢測到雪崩！ ⚠️
             </div>
-
             <div class="world" id="world">
                 <div class="piste"></div>
-                
                 <div id="avalanche-wave">
                     <div class="snow-boulder sb-1"></div>
                     <div class="snow-boulder sb-2"></div>
@@ -199,83 +172,59 @@
                     <div class="snow-boulder sb-4"></div>
                     <div class="snow-boulder sb-5"></div>
                 </div>
-
                 <div id="bottom-snow-pile">
                     <div class="pile-circle pc-1"></div>
                     <div class="pile-circle pc-2"></div>
                     <div class="pile-circle pc-3"></div>
                 </div>
             </div>
-
             <div class="absolute bottom-6 right-6 flex flex-col gap-3 z-20">
-                <button id="btn-sim-avalanche" onclick="simulateAvalanche()" class="bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-6 rounded-xl shadow-lg transform transition hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed">
+                <button id="btn-sim-avalanche" onclick="simulateAvalanche()" class="bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-6 rounded-xl shadow-lg disabled:opacity-50">
                     🌋 模擬雪崩
                 </button>
-                <button onclick="recoverAll()" class="bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-xl shadow-lg transform transition hover:scale-105">
+                <button onclick="recoverAll()" class="bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-xl shadow-lg">
                     🔄 復原場景
                 </button>
             </div>
         </div>
     </main>
 
-    <!-- 下方狀態卡片 -->
     <footer class="bg-white p-6 shadow-inner z-10">
         <div class="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6">
-            <!-- 咭牌 1 -->
-            <div id="card-1" class="bg-gray-50 border-l-8 border-red-500 rounded-lg p-5 shadow-md transition-all duration-300 flex flex-col">
+            <div id="card-1" class="bg-gray-50 border-l-8 border-red-500 rounded-lg p-5 shadow-md flex flex-col">
                 <div class="flex items-center justify-between mb-3">
-                    <div>
-                        <h3 class="text-xl font-bold text-gray-800">Pole 1</h3>
-                        <p class="text-sm text-gray-500">紅側監測</p>
-                    </div>
-                    <div class="status-badge bg-green-100 text-green-700 px-4 py-2 rounded-full font-bold text-lg transition-colors">
-                        直立
-                    </div>
+                    <div><h3 class="text-xl font-bold text-gray-800">Pole 1</h3></div>
+                    <div class="status-badge bg-green-100 text-green-700 px-4 py-2 rounded-full font-bold">直立</div>
                 </div>
-                <div class="bg-gray-200 rounded p-2 flex items-center justify-between">
-                    <div class="flex items-center overflow-hidden">
-                        <span class="text-xs text-gray-500 font-bold mr-2 whitespace-nowrap">訊號:</span>
-                        <span id="log-1" class="text-sm font-mono text-gray-800 truncate">無訊號</span>
+                <div class="bg-gray-200 rounded p-2 flex flex-col gap-1">
+                    <div class="flex items-center justify-between">
+                        <span id="log-1" class="text-sm font-mono font-bold truncate">無訊號</span>
+                        <div id="dot-1" class="signal-dot ml-2"></div>
                     </div>
-                    <div id="dot-1" class="signal-dot flex-shrink-0 ml-2"></div>
                 </div>
             </div>
-            <!-- 咭牌 2 -->
-            <div id="card-2" class="bg-gray-50 border-l-8 border-blue-500 rounded-lg p-5 shadow-md transition-all duration-300 flex flex-col">
+            <div id="card-2" class="bg-gray-50 border-l-8 border-blue-500 rounded-lg p-5 shadow-md flex flex-col">
                 <div class="flex items-center justify-between mb-3">
-                    <div>
-                        <h3 class="text-xl font-bold text-gray-800">Pole 2</h3>
-                        <p class="text-sm text-gray-500">藍側監測</p>
-                    </div>
-                    <div class="status-badge bg-green-100 text-green-700 px-4 py-2 rounded-full font-bold text-lg transition-colors">
-                        直立
-                    </div>
+                    <div><h3 class="text-xl font-bold text-gray-800">Pole 2</h3></div>
+                    <div class="status-badge bg-green-100 text-green-700 px-4 py-2 rounded-full font-bold">直立</div>
                 </div>
-                <div class="bg-gray-200 rounded p-2 flex items-center justify-between">
-                    <div class="flex items-center overflow-hidden">
-                        <span class="text-xs text-gray-500 font-bold mr-2 whitespace-nowrap">訊號:</span>
-                        <span id="log-2" class="text-sm font-mono text-gray-800 truncate">無訊號</span>
+                <div class="bg-gray-200 rounded p-2 flex flex-col gap-1">
+                    <div class="flex items-center justify-between">
+                        <span id="log-2" class="text-sm font-mono font-bold truncate">無訊號</span>
+                        <div id="dot-2" class="signal-dot ml-2"></div>
                     </div>
-                    <div id="dot-2" class="signal-dot flex-shrink-0 ml-2"></div>
                 </div>
             </div>
-            <!-- 咭牌 3 -->
-            <div id="card-3" class="bg-gray-50 border-l-8 border-green-500 rounded-lg p-5 shadow-md transition-all duration-300 flex flex-col">
+            <div id="card-3" class="bg-gray-50 border-l-8 border-green-500 rounded-lg p-5 shadow-md flex flex-col">
                 <div class="flex items-center justify-between mb-3">
-                    <div>
-                        <h3 class="text-xl font-bold text-gray-800">Pole 3</h3>
-                        <p class="text-sm text-gray-500">綠側監測</p>
-                    </div>
-                    <div class="status-badge bg-green-100 text-green-700 px-4 py-2 rounded-full font-bold text-lg transition-colors">
-                        直立
-                    </div>
+                    <div><h3 class="text-xl font-bold text-gray-800">Pole 3</h3></div>
+                    <div class="status-badge bg-green-100 text-green-700 px-4 py-2 rounded-full font-bold">直立</div>
                 </div>
-                <div class="bg-gray-200 rounded p-2 flex items-center justify-between">
-                    <div class="flex items-center overflow-hidden">
-                        <span class="text-xs text-gray-500 font-bold mr-2 whitespace-nowrap">訊號:</span>
-                        <span id="log-3" class="text-sm font-mono text-gray-800 truncate">無訊號</span>
+                <div class="bg-gray-200 rounded p-2 flex flex-col gap-1">
+                    <div class="flex items-center justify-between">
+                        <span id="log-3" class="text-sm font-mono font-bold truncate">無訊號</span>
+                        <div id="dot-3" class="signal-dot ml-2"></div>
                     </div>
-                    <div id="dot-3" class="signal-dot flex-shrink-0 ml-2"></div>
                 </div>
             </div>
         </div>
@@ -289,23 +238,29 @@
             audioCtx: null,
             currentMode: 'virtual',
             serialPort: null,
-            serialBuffer: ''
+            serialBuffer: '',
+            // 用於儲存每個支柱最後一次切換狀態的時間，防止快速抖動
+            lastToggleTime: { 1: 0, 2: 0, 3: 0 } 
         };
 
-        const POLE_COUNT_PER_SIDE = 8;
-        const SPECIAL_POLES = {
-            'L-2': { id: 1, colorClass: 'special-1' },
-            'R-4': { id: 2, colorClass: 'special-2' },
-            'L-6': { id: 3, colorClass: 'special-3' }
-        };
+        const SPECIAL_POLES = { 'L-2': 1, 'R-4': 2, 'L-6': 3 };
 
         function initScene() {
             const world = document.getElementById('world');
-            const leftX = 50, rightX = 430, startY = 80, spacingY = 90;
-            for (let i = 0; i < POLE_COUNT_PER_SIDE; i++) {
-                createPoleElement(world, `L-${i}`, leftX, startY + (i * spacingY));
-                createPoleElement(world, `R-${i}`, rightX, startY + (i * spacingY));
-            }
+            const poles = [
+                {x: 50, y: 80, side: 'L'}, {x: 430, y: 80, side: 'R'},
+                {x: 50, y: 170, side: 'L'}, {x: 430, y: 170, side: 'R'},
+                {x: 50, y: 260, side: 'L'}, {x: 430, y: 260, side: 'R'},
+                {x: 50, y: 350, side: 'L'}, {x: 430, y: 350, side: 'R'},
+                {x: 50, y: 440, side: 'L'}, {x: 430, y: 440, side: 'R'},
+                {x: 50, y: 530, side: 'L'}, {x: 430, y: 530, side: 'R'},
+                {x: 50, y: 620, side: 'L'}, {x: 430, y: 620, side: 'R'},
+                {x: 50, y: 710, side: 'L'}, {x: 430, y: 710, side: 'R'}
+            ];
+            poles.forEach((p, i) => {
+                const id = `${p.side}-${Math.floor(i/2)}`;
+                createPoleElement(world, id, p.x, p.y);
+            });
             updateCards();
         }
 
@@ -314,135 +269,65 @@
             container.className = 'pole-container';
             container.style.left = `${x}px`;
             container.style.top = `${y}px`;
-            
             const pole = document.createElement('div');
             pole.className = 'pole';
-            
-            let isSpecial = false, specialId = null;
-            if (SPECIAL_POLES[id]) {
-                pole.classList.add(SPECIAL_POLES[id].colorClass);
-                isSpecial = true;
-                specialId = SPECIAL_POLES[id].id;
-            }
-
+            let specialId = SPECIAL_POLES[id] || null;
+            if (specialId) pole.classList.add(`special-${specialId}`);
             container.appendChild(pole);
             parent.appendChild(container);
-
-            const poleData = {
-                id, element: container, isFallen: false,
-                isSpecial, specialId, recoverTimer: null
+            state.poles.push({ id, element: container, isFallen: false, specialId });
+            container.onclick = () => {
+                if (state.currentMode === 'virtual' && !state.isAvalanche) knockDownPole(state.poles.find(p=>p.id===id));
             };
-            state.poles.push(poleData);
-
-            container.addEventListener('click', () => {
-                if (state.currentMode === 'virtual' && !state.isAvalanche && !poleData.isFallen) {
-                    knockDownPole(poleData);
-                }
-            });
         }
 
         function toggleMode() {
             state.currentMode = document.getElementById('mode-select').value;
-            const simBtn = document.getElementById('btn-sim-avalanche');
-            if (state.currentMode === 'microbit') {
-                simBtn.disabled = true;
-                recoverAll();
-                [1,2,3].forEach(id => {
-                    document.getElementById(`log-${id}`).textContent = '等待訊號...';
-                    document.getElementById(`dot-${id}`).classList.remove('signal-active');
-                });
-            } else {
-                simBtn.disabled = false;
-            }
+            document.getElementById('btn-sim-avalanche').disabled = state.currentMode === 'microbit';
+            recoverAll();
         }
 
-        function knockDownPole(poleData) {
-            if (poleData.isFallen) return; // 狀態相同不更新
-            poleData.isFallen = true;
-            poleData.element.classList.add('fallen');
-            if (poleData.isSpecial) updateCards();
+        function knockDownPole(p) {
+            if (p.isFallen) return;
+            p.isFallen = true;
+            p.element.classList.add('fallen');
+            updateCards();
             checkGlobalAlarm();
-
-            if (state.currentMode === 'virtual') {
-                if (poleData.recoverTimer) clearTimeout(poleData.recoverTimer);
-                poleData.recoverTimer = setTimeout(() => {
-                    if (!state.isAvalanche) standUpPole(poleData);
-                }, 5000);
-            }
+            if (state.currentMode === 'virtual') setTimeout(() => { if(!state.isAvalanche) standUpPole(p); }, 5000);
         }
 
-        function standUpPole(poleData) {
-            if (!poleData.isFallen) return; // 狀態相同不更新
-            poleData.isFallen = false;
-            poleData.element.classList.remove('fallen');
-            if (poleData.isSpecial) updateCards();
+        function standUpPole(p) {
+            if (!p.isFallen) return;
+            p.isFallen = false;
+            p.element.classList.remove('fallen');
+            updateCards();
             checkGlobalAlarm();
         }
 
         function updateCards() {
-            state.poles.filter(p => p.isSpecial).forEach(p => {
-                const card = document.getElementById(`card-${p.specialId}`);
-                const badge = card.querySelector('.status-badge');
-                if (p.isFallen) {
-                    badge.textContent = '倒下';
-                    badge.className = 'status-badge bg-red-100 text-red-700 px-4 py-2 rounded-full font-bold text-lg';
-                    card.classList.add('bg-red-50');
-                } else {
-                    badge.textContent = '直立';
-                    badge.className = 'status-badge bg-green-100 text-green-700 px-4 py-2 rounded-full font-bold text-lg';
-                    card.classList.remove('bg-red-50');
-                }
+            state.poles.filter(p => p.specialId).forEach(p => {
+                const badge = document.querySelector(`#card-${p.specialId} .status-badge`);
+                badge.textContent = p.isFallen ? '倒下' : '直立';
+                badge.className = `status-badge px-4 py-2 rounded-full font-bold ${p.isFallen ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`;
             });
         }
 
         function checkGlobalAlarm() {
             if (state.isAvalanche) return;
-            if (state.currentMode === 'microbit') {
-                const specialFallenCount = state.poles.filter(p => p.isSpecial && p.isFallen).length;
-                if (specialFallenCount >= 3) simulateAvalanche();
-            } else {
-                const fallenCount = state.poles.filter(p => p.isFallen).length;
-                if (fallenCount >= 6) triggerAlarm();
-                else if (fallenCount < 6 && state.alarmInterval) stopAlarm();
-            }
+            const specialFallen = state.poles.filter(p => p.specialId && p.isFallen).length;
+            if (state.currentMode === 'microbit' && specialFallen >= 3) simulateAvalanche();
+            else if (state.currentMode === 'virtual' && state.poles.filter(p=>p.isFallen).length >= 6) triggerAlarm();
         }
 
         function simulateAvalanche() {
             if (state.isAvalanche) return;
             state.isAvalanche = true;
-            
-            const wave = document.getElementById('avalanche-wave');
-            wave.style.transition = 'none';
-            wave.style.top = '-600px';
-            void wave.offsetWidth;
-            wave.style.transition = 'top 2s cubic-bezier(0.4, 0, 0.8, 1), opacity 0.3s';
-            wave.classList.add('active');
-
-            const world = document.getElementById('world');
-            for(let i=0; i<50; i++) {
-                const particle = document.createElement('div');
-                particle.className = 'snow-particle avalanche-debris';
-                const size = Math.random() * 50 + 20;
-                particle.style.width = `${size}px`;
-                particle.style.height = `${size}px`;
-                particle.style.left = `${Math.random() * 120 - 10}%`; 
-                particle.style.top = `${-200 - Math.random() * 300}px`; 
-                particle.style.transform = `translateZ(${Math.random() * 100}px)`;
-                world.appendChild(particle);
-                setTimeout(() => {
-                    particle.style.top = `${1000 + Math.random() * 200}px`;
-                    particle.style.left = `calc(${particle.style.left} + ${Math.random() * 40 - 20}%)`;
-                }, 50);
-            }
-
-            setTimeout(() => document.getElementById('bottom-snow-pile').classList.add('active'), 1200);
-
-            state.poles.forEach((p) => {
-                if (p.recoverTimer) clearTimeout(p.recoverTimer);
-                const delay = (parseInt(p.element.style.top) / 800) * 1200 + 300; 
+            document.getElementById('avalanche-wave').classList.add('active');
+            setTimeout(() => document.getElementById('bottom-snow-pile').classList.add('active'), 1000);
+            state.poles.forEach(p => {
+                const delay = (parseInt(p.element.style.top) / 800) * 1500 + 200;
                 setTimeout(() => knockDownPole(p), delay);
             });
-
             triggerAlarm();
         }
 
@@ -451,114 +336,90 @@
             stopAlarm();
             document.getElementById('avalanche-wave').classList.remove('active');
             document.getElementById('bottom-snow-pile').classList.remove('active');
-            document.querySelectorAll('.avalanche-debris').forEach(el => el.remove());
-            state.poles.forEach(p => {
-                if (p.recoverTimer) clearTimeout(p.recoverTimer);
-                standUpPole(p);
-            });
+            state.poles.forEach(p => standUpPole(p));
         }
 
         function triggerAlarm() {
             if (state.alarmInterval) return;
-            if (!state.audioCtx) state.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             document.getElementById('alarm-overlay').classList.add('alarm-active');
-            document.getElementById('scene-container').classList.add('border-red-500');
             document.getElementById('alarm-text').classList.remove('hidden');
-            
-            const beep = () => {
-                const osc = state.audioCtx.createOscillator();
-                const gain = state.audioCtx.createGain();
-                osc.type = 'square';
-                osc.frequency.setValueAtTime(800, state.audioCtx.currentTime);
-                osc.frequency.exponentialRampToValueAtTime(1200, state.audioCtx.currentTime + 0.1);
-                gain.gain.setValueAtTime(0.05, state.audioCtx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.001, state.audioCtx.currentTime + 0.4);
-                osc.connect(gain); gain.connect(state.audioCtx.destination);
-                osc.start(); osc.stop(state.audioCtx.currentTime + 0.4);
-            };
-            beep();
-            state.alarmInterval = setInterval(beep, 800);
+            if (!state.audioCtx) state.audioCtx = new AudioContext();
+            state.alarmInterval = setInterval(() => {
+                const o = state.audioCtx.createOscillator();
+                const g = state.audioCtx.createGain();
+                o.type = 'square';
+                o.frequency.setValueAtTime(800, state.audioCtx.currentTime);
+                g.gain.setValueAtTime(0.05, state.audioCtx.currentTime);
+                g.gain.exponentialRampToValueAtTime(0.001, state.audioCtx.currentTime + 0.4);
+                o.connect(g); g.connect(state.audioCtx.destination);
+                o.start(); o.stop(state.audioCtx.currentTime + 0.4);
+            }, 800);
         }
 
         function stopAlarm() {
-            if (state.alarmInterval) { clearInterval(state.alarmInterval); state.alarmInterval = null; }
+            clearInterval(state.alarmInterval);
+            state.alarmInterval = null;
             document.getElementById('alarm-overlay').classList.remove('alarm-active');
-            document.getElementById('scene-container').classList.remove('border-red-500');
             document.getElementById('alarm-text').classList.add('hidden');
         }
 
-        // Web Serial API 連接
         async function connectMicrobit() {
-            if (!("serial" in navigator)) {
-                alert("瀏覽器不支援 Web Serial API。請使用 Chrome 或 Edge。");
-                return;
-            }
             try {
                 const port = await navigator.serial.requestPort();
                 await port.open({ baudRate: 115200 });
                 state.serialPort = port;
-                
-                const btn = document.getElementById('btn-microbit');
-                btn.classList.replace('bg-blue-600', 'bg-green-600');
-                btn.innerHTML = `✅ 已連接 (Serial)`;
-
-                const textDecoder = new TextDecoderStream();
-                const readableStreamClosed = port.readable.pipeTo(textDecoder.writable);
-                const reader = textDecoder.readable.getReader();
-
+                document.getElementById('btn-microbit').textContent = '✅ 已連接';
+                const reader = port.readable.pipeThrough(new TextDecoderStream()).getReader();
                 while (true) {
                     const { value, done } = await reader.read();
                     if (done) break;
-                    if (value) handleSerialData(value);
+                    handleSerialData(value);
                 }
-            } catch (error) {
-                alert(`Serial 連接失敗: ${error.message}`);
-            }
+            } catch (e) { alert('Serial 連接失敗'); }
         }
 
         function handleSerialData(chunk) {
             if (state.currentMode !== 'microbit') return;
             state.serialBuffer += chunk;
-            
-            // 處理粘包與分段資料
             let lines = state.serialBuffer.split(/\r?\n/);
-            state.serialBuffer = lines.pop(); // 保留不完整的一行
+            state.serialBuffer = lines.pop();
+
+            const now = Date.now();
 
             lines.forEach(line => {
-                const originalText = line.trim();
-                const text = originalText.toLowerCase();
-                if (!text) return;
-                
-                // 解析指令並執行
+                const raw = line.trim();
+                if (!raw) return;
+                const text = raw.toLowerCase();
+
                 [1, 2, 3].forEach(id => {
                     const pole = state.poles.find(p => p.specialId === id);
                     if (!pole) return;
 
-                    // 檢查指令是否針對此特定 Pole
-                    const isDown = text.includes(`${id} down`);
-                    const isUp = text.includes(`${id} up`);
+                    const isDown = new RegExp(`${id}\\s*down`).test(text);
+                    const isUp = new RegExp(`${id}\\s*up`).test(text);
 
                     if (isDown || isUp) {
-                        // 更新 UI 指令文字與閃爍指示燈
-                        const logEl = document.getElementById(`log-${id}`);
-                        const dotEl = document.getElementById(`dot-${id}`);
-                        
-                        logEl.textContent = originalText.toUpperCase();
-                        dotEl.classList.add('signal-active');
-                        setTimeout(() => dotEl.classList.remove('signal-active'), 100);
+                        // 抗抖動限制：200ms 內不接受重複切換
+                        if (now - state.lastToggleTime[id] < 200) return;
 
-                        // 只有狀態真的改變時才觸發動作 (防止邊界抖動)
+                        document.getElementById(`log-${id}`).textContent = raw.toUpperCase();
+                        const dot = document.getElementById(`dot-${id}`);
+                        dot.classList.add('signal-active');
+                        setTimeout(() => dot.classList.remove('signal-active'), 100);
+
                         if (isDown && !pole.isFallen && !state.isAvalanche) {
                             knockDownPole(pole);
+                            state.lastToggleTime[id] = now;
                         } else if (isUp && pole.isFallen) {
                             standUpPole(pole);
+                            state.lastToggleTime[id] = now;
                         }
                     }
                 });
             });
         }
 
-        window.addEventListener('DOMContentLoaded', initScene);
+        window.onload = initScene;
     </script>
 </body>
 </html>
