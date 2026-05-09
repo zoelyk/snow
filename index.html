@@ -364,6 +364,9 @@
                 }
                 standUpPole(p);
             });
+
+            // 【新增保險】清空積壓的 Serial 緩衝區資料，確保復原後接收的都是最新訊號
+            state.serialBuffer = '';
         }
 
         function triggerAlarm() {
@@ -426,18 +429,19 @@
                     const isUp = new RegExp(`${id}\\s*up`).test(text);
 
                     if (isDown || isUp) {
-                        // 抗抖動限制：200ms 內不接受重複切換
-                        if (now - state.lastToggleTime[id] < 200) return;
-
+                        // 【優化】永遠優先更新 UI 文字與閃爍燈，證明網頁確實有收到訊號
                         document.getElementById(`log-${id}`).textContent = raw.toUpperCase();
                         const dot = document.getElementById(`dot-${id}`);
                         dot.classList.add('signal-active');
                         setTimeout(() => dot.classList.remove('signal-active'), 100);
 
+                        // 防抖動限制只擋「倒下/直立」的動畫動作，絕不擋 UI 狀態列更新
+                        if (now - state.lastToggleTime[id] < 200) return;
+
                         if (isDown && !pole.isFallen && !state.isAvalanche) {
                             knockDownPole(pole);
                             state.lastToggleTime[id] = now;
-                        } else if (isUp && pole.isFallen) {
+                        } else if (isUp && pole.isFallen && !state.isAvalanche) {
                             standUpPole(pole);
                             state.lastToggleTime[id] = now;
                         }
